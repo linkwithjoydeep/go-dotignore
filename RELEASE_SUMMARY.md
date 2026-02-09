@@ -42,14 +42,14 @@ Your go-dotignore v2.0.0 release is **production-ready** with proper Go module d
 Users will see **automatic warnings** from Go tooling:
 
 ```bash
-$ go get github.com/codeglyph/go-dotignore@v1.1.1
+$ go get github.com/codeglyph/go-dotignore/v2@v1.1.1
 
-go: downloading github.com/codeglyph/go-dotignore v1.1.1
-go: warning: github.com/codeglyph/go-dotignore@v1.1.1: retracted by module author:
+go: downloading github.com/codeglyph/go-dotignore/v2 v1.1.1
+go: warning: github.com/codeglyph/go-dotignore/v2@v1.1.1: retracted by module author:
     Critical bugs: substring matching, root-relative patterns broken,
     no escaped negation support. Fixed in v2.0.0
 go: to switch to the latest unretracted version, run:
-    go get github.com/codeglyph/go-dotignore@v2.0.0
+    go get github.com/codeglyph/go-dotignore/v2@v2.0.1
 ```
 
 ### 2. When Viewing Documentation
@@ -68,7 +68,7 @@ go: to switch to the latest unretracted version, run:
 ```bash
 $ go list -m -retracted all
 
-github.com/codeglyph/go-dotignore v1.1.1 (retracted)
+github.com/codeglyph/go-dotignore/v2 v1.1.1 (retracted)
   retract (Critical bugs: substring matching, root-relative patterns broken...)
 ```
 
@@ -76,7 +76,7 @@ github.com/codeglyph/go-dotignore v1.1.1 (retracted)
 
 **Automated PRs will show:**
 ```
-⬆️ Update github.com/codeglyph/go-dotignore to v2.0.0
+⬆️ Update github.com/codeglyph/go-dotignore/v2 to v2.0.0
 
 IMPORTANT: This update fixes 3 critical bugs:
 - Root-relative patterns now work (Issue #5)
@@ -195,7 +195,7 @@ gh release create v2.0.0 \
   --latest
 
 # 5. Close Issue #5
-gh issue close 5 --comment "Fixed in v2.0.0! 🎉 Root-relative patterns now work correctly. Release: https://github.com/codeglyph/go-dotignore/releases/tag/v2.0.0"
+gh issue close 5 --comment "Fixed in v2.0.0! 🎉 Root-relative patterns now work correctly. Release: https://github.com/codeglyph/go-dotignore/v2/releases/tag/v2.0.0"
 ```
 
 ### Option 2: One-Liner (if already committed)
@@ -228,7 +228,7 @@ grep -A 1 "retract" go.mod
 # ✅ Shows: retract [v1.0.0, v1.1.1]
 
 # 5. Package doc includes warning
-go doc github.com/codeglyph/go-dotignore | head -20
+go doc github.com/codeglyph/go-dotignore/v2 | head -20
 # ✅ Shows deprecation warning
 ```
 
@@ -267,12 +267,12 @@ Your release is successful when:
 
 ✅ **Users see retraction warnings** for v1.x
 ```bash
-go get github.com/codeglyph/go-dotignore@v1.1.1
+go get github.com/codeglyph/go-dotignore/v2@v1.1.1
 # Should show retraction warning
 ```
 
 ✅ **Documentation is clear** on pkg.go.dev
-- Visit: https://pkg.go.dev/github.com/codeglyph/go-dotignore@v2.0.0
+- Visit: https://pkg.go.dev/github.com/codeglyph/go-dotignore/v2@v2.0.1
 - Should show deprecation notice
 - Should show all new features
 
@@ -350,7 +350,7 @@ git push origin main && git push origin v2.0.0 && gh release create v2.0.0 --tit
 
 **Verify retraction:**
 ```bash
-go list -m -retracted github.com/codeglyph/go-dotignore@v1.1.1
+go list -m -retracted github.com/codeglyph/go-dotignore/v2@v1.1.1
 ```
 
 ---

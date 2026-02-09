@@ -42,7 +42,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/codeglyph/go-dotignore/internal"
+	"github.com/codeglyph/go-dotignore/v2/internal"
 )
 
 type ignorePattern struct {

@@ -4,6 +4,8 @@
 
 This major release fixes **three critical bugs** and adds full support for root-relative patterns, bringing go-dotignore into complete compliance with the gitignore specification.
 
+**⚠️ Important:** v2.0.0 was released with incorrect module path. Please use **v2.0.1+** which includes the proper `/v2` import path required by Go modules.
+
 ---
 
 ## 🐛 Critical Bug Fixes
@@ -197,10 +199,10 @@ If you were **intentionally** relying on substring matching (unlikely), update p
 
 ```bash
 # Go modules (recommended)
-go get github.com/codeglyph/go-dotignore@v2.0.0
+go get github.com/codeglyph/go-dotignore/v2@v2.0.1
 
 # Or update your go.mod
-github.com/codeglyph/go-dotignore v2.0.0
+github.com/codeglyph/go-dotignore/v2 v2.0.0
 ```
 
 Then run:
@@ -226,7 +228,7 @@ package main
 
 import (
     "fmt"
-    "github.com/codeglyph/go-dotignore"
+    "github.com/codeglyph/go-dotignore/v2"
 )
 
 func main() {
@@ -319,6 +321,6 @@ Thanks to [@shadiramadan](https://github.com/shadiramadan) for reporting Issue #
 
 ---
 
-**Full Diff:** [v1.1.1...v2.0.0](https://github.com/codeglyph/go-dotignore/compare/v1.1.1...v2.0.0)
+**Full Diff:** [v1.1.1...v2.0.0](https://github.com/codeglyph/go-dotignore/v2/compare/v1.1.1...v2.0.0)
 
 **Closes:** [#5](https://github.com/linkwithjoydeep/go-dotignore/issues/5)

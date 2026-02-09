@@ -4,6 +4,8 @@
 
 This release fixes **three critical bugs** and adds full support for root-relative patterns, achieving complete gitignore specification compliance!
 
+**⚠️ Note:** Use v2.0.1+ with the `/v2` import path for proper Go module support.
+
 ---
 
 ## 🐛 Critical Bug Fixes
@@ -74,7 +76,7 @@ patterns := []string{
 ## 📦 Installation
 
 ```bash
-go get github.com/codeglyph/go-dotignore@v2.0.0
+go get github.com/codeglyph/go-dotignore/v2@v2.0.1
 ```
 
 ---

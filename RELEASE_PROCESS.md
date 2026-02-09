@@ -175,7 +175,7 @@ RETRACTION:
 Versions v1.0.0-v1.1.1 are retracted due to critical bugs.
 All users should upgrade to v2.0.0 immediately.
 
-go get github.com/codeglyph/go-dotignore@v2.0.0
+go get github.com/codeglyph/go-dotignore/v2@latest
 
 CLOSES:
 =======
@@ -251,7 +251,7 @@ patterns := []string{
 ## Upgrade
 
 \`\`\`bash
-go get github.com/codeglyph/go-dotignore@v2.0.0
+go get github.com/codeglyph/go-dotignore/v2@latest
 \`\`\`
 
 ## Release Notes
@@ -297,7 +297,7 @@ go get github.com/codeglyph/go-dotignore@v1.1.1
 #  Critical bugs: substring matching, root-relative patterns broken, no escaped negation support. Fixed in v2.0.0"
 
 # Upgrade to v2.0.0 (should work smoothly)
-go get github.com/codeglyph/go-dotignore@v2.0.0
+go get github.com/codeglyph/go-dotignore/v2@latest
 
 # Cleanup
 cd -
@@ -327,7 +327,7 @@ Major update fixing 3 critical bugs including the long-awaited root-relative pat
 ✅ Added escaped negation support (\!)
 
 Versions v1.0.0-v1.1.1 are retracted. Upgrade now:
-go get github.com/codeglyph/go-dotignore@v2.0.0
+go get github.com/codeglyph/go-dotignore/v2@latest
 
 Full details: https://github.com/codeglyph/go-dotignore/releases/tag/v2.0.0
 

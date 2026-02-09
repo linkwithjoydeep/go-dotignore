@@ -1,8 +1,10 @@
-# Migration Guide: v1.x to v2.0.0
+# Migration Guide: v1.x to v2.0+
 
 ## Why Upgrade?
 
-Versions v1.0.0-v1.1.1 contain **three critical bugs** and are officially retracted. All users should upgrade to v2.0.0 immediately.
+Versions v1.0.0-v1.1.1 contain **three critical bugs** and are officially retracted. All users should upgrade to v2.0.1+ immediately.
+
+**Note:** v2.0.0 was tagged with an incorrect module path. Use v2.0.1+ which includes the proper `/v2` suffix in the import path.
 
 ## Critical Bugs Fixed in v2.0.0
 
@@ -62,7 +64,7 @@ matcher.Matches("!important.txt")  // true ✅
 ### Step 1: Update Dependency
 
 ```bash
-go get github.com/codeglyph/go-dotignore@v2.0.0
+go get github.com/codeglyph/go-dotignore/v2@v2.0.1
 go mod tidy
 ```
 
@@ -112,7 +114,7 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/codeglyph/go-dotignore"
+    "github.com/codeglyph/go-dotignore/v2"
 )
 
 func main() {
@@ -154,17 +156,17 @@ func main() {
 
 ### Step 4: Update CI/CD (If Needed)
 
-If you pin versions in CI/CD, update to v2.0.0:
+If you pin versions in CI/CD, update to v2.0.1+:
 
 ```yaml
 # GitHub Actions
 - name: Install dependencies
-  run: go get github.com/codeglyph/go-dotignore@v2.0.0
+  run: go get github.com/codeglyph/go-dotignore/v2@v2.0.1
 ```
 
 ```dockerfile
 # Dockerfile
-RUN go get github.com/codeglyph/go-dotignore@v2.0.0
+RUN go get github.com/codeglyph/go-dotignore/v2@v2.0.1
 ```
 
 ---
@@ -284,7 +286,7 @@ patterns := []string{
 If you absolutely must rollback (not recommended due to critical bugs):
 
 ```bash
-go get github.com/codeglyph/go-dotignore@v1.1.1
+go get github.com/codeglyph/go-dotignore/v2@v1.1.1
 ```
 
 **However, this is strongly discouraged** as v1.x contains critical bugs that can cause:
@@ -298,9 +300,9 @@ go get github.com/codeglyph/go-dotignore@v1.1.1
 
 If you encounter issues during migration:
 
-1. Check the [Release Notes](https://github.com/codeglyph/go-dotignore/releases/tag/v2.0.0)
-2. Review [Examples](https://pkg.go.dev/github.com/codeglyph/go-dotignore#pkg-examples)
-3. Open an [Issue](https://github.com/codeglyph/go-dotignore/issues)
+1. Check the [Release Notes](https://github.com/codeglyph/go-dotignore/v2/releases/tag/v2.0.0)
+2. Review [Examples](https://pkg.go.dev/github.com/codeglyph/go-dotignore/v2#pkg-examples)
+3. Open an [Issue](https://github.com/codeglyph/go-dotignore/v2/issues)
 
 ---
 
@@ -312,4 +314,4 @@ If you encounter issues during migration:
 - ✅ **No API changes** - Same function signatures
 - ✅ **Better compliance** - Full gitignore specification support
 
-**Upgrade now:** `go get github.com/codeglyph/go-dotignore@v2.0.0`
+**Upgrade now:** `go get github.com/codeglyph/go-dotignore/v2@latest`

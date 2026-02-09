@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/codeglyph/go-dotignore"
+	"github.com/codeglyph/go-dotignore/v2"
 )
 
 func ExampleNewPatternMatcher() {
