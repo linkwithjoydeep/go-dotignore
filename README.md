@@ -25,6 +25,7 @@
 - 🔄 **Negation Patterns** - Use `!` to override ignore rules
 - 🌟 **Advanced Wildcards** - Support for `*`, `?`, and `**` patterns
 - 📂 **Directory Matching** - Proper handling of directory-only patterns with `/`
+- 🏗️ **Nested .gitignore Support** - Hierarchical matching for monorepos (like Git!)
 - 🔒 **Cross-Platform** - Consistent behavior across Windows, macOS, and Linux
 - ⚡ **Memory Efficient** - Minimal memory footprint with lazy evaluation
 - 🛡️ **Error Handling** - Comprehensive error reporting and validation
@@ -48,6 +49,8 @@ require github.com/codeglyph/go-dotignore/v2 v2.0.1
 - Versions v1.0.0-v1.1.1 are retracted due to critical bugs
 
 ## Quick Start
+
+### Basic Pattern Matching
 
 ```go
 package main
@@ -89,6 +92,23 @@ func main() {
         fmt.Printf("%-20s ignored: %v\n", file, ignored)
     }
 }
+```
+
+### Nested .gitignore Support (Monorepos)
+
+```go
+// For repositories with nested .gitignore files
+matcher, err := dotignore.NewRepositoryMatcher("/path/to/repo")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Automatically handles nested .gitignore files like Git does
+ignored, err := matcher.Matches("frontend/node_modules/package.json")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Should ignore: %v\n", ignored)
 ```
 
 ## Usage Examples
@@ -167,6 +187,110 @@ patterns := []string{
     // Complex patterns
     "src/**/temp/",       // temp directories anywhere under src
     "*.{log,tmp,cache}",  // Multiple extensions (if supported)
+}
+```
+
+## Nested .gitignore Support
+
+**NEW in v2.1+**: `RepositoryMatcher` provides hierarchical .gitignore matching for real-world repositories with nested .gitignore files.
+
+### Why You Need This
+
+If you're building tools that work with Git repositories (like file walkers, build tools, or code analyzers), you need to respect ALL .gitignore files in the repository, not just the root one. This is exactly how Git works!
+
+### Example: Monorepo with Multiple .gitignore Files
+
+```go
+// Repository structure:
+// project/
+//   .gitignore              # Global rules: *.log, .env
+//   frontend/
+//     .gitignore            # Frontend rules: node_modules/, dist/
+//     node_modules/         # Ignored by frontend/.gitignore
+//   backend/
+//     .gitignore            # Backend rules: target/, *.class
+//     target/               # Ignored by backend/.gitignore
+
+matcher, err := dotignore.NewRepositoryMatcher("/path/to/project")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Global patterns apply everywhere
+matcher.Matches("app.log")                              // true (root .gitignore)
+matcher.Matches("frontend/debug.log")                   // true (root .gitignore)
+
+// Subproject patterns apply locally
+matcher.Matches("frontend/node_modules/pkg/index.js")   // true (frontend/.gitignore)
+matcher.Matches("backend/target/classes/Main.class")    // true (backend/.gitignore)
+
+// Source files are not ignored
+matcher.Matches("frontend/src/App.js")                  // false
+```
+
+### Pattern Override with Negation
+
+Child .gitignore files can override parent patterns using negation (`!`):
+
+```go
+// project/
+//   .gitignore              # *.txt (ignore all .txt files)
+//   important/
+//     .gitignore            # !critical.txt (un-ignore this specific file)
+
+matcher.Matches("file.txt")                   // true (ignored by root)
+matcher.Matches("important/file.txt")         // true (still ignored by root)
+matcher.Matches("important/critical.txt")     // false (un-ignored by important/.gitignore)
+```
+
+### Configuration Options
+
+```go
+config := &dotignore.RepositoryConfig{
+    IgnoreFileName: ".gitignore",  // Name of ignore files (default: ".gitignore")
+    MaxDepth:       10,             // Limit directory depth (0 = unlimited)
+    FollowSymlinks: false,          // Whether to follow symbolic links
+}
+
+matcher, err := dotignore.NewRepositoryMatcherWithConfig("/path/to/repo", config)
+```
+
+## Comparison with Other Libraries
+
+### vs. github.com/sabhiram/go-gitignore
+
+| Feature | go-dotignore | go-gitignore |
+|---------|--------------|--------------|
+| **Nested .gitignore support** | ✅ Yes (`RepositoryMatcher`) | ❌ No |
+| **Root-relative patterns** (`/build/`) | ✅ Correct | ⚠️ Issues |
+| **Pattern order/precedence** | ✅ Correct | ⚠️ Issues |
+| **Negation patterns** | ✅ Full support | ⚠️ Limited |
+| **Escaped negation** (`\!`) | ✅ Yes | ❌ No |
+| **Cross-platform** | ✅ Yes | ✅ Yes |
+| **Active maintenance** | ✅ Active | ⚠️ Unmaintained |
+| **Full gitignore spec** | ✅ v2.0+ compliant | ⚠️ Partial |
+
+**TL;DR:** go-dotignore v2+ is a **drop-in replacement** with full Git spec compliance and nested .gitignore support.
+
+### Migration from go-gitignore
+
+```go
+// Old (go-gitignore) - single file only
+gitignore, err := ignore.CompileIgnoreFile(".gitignore")
+if gitignore.MatchesPath("file.txt") {
+    // file is ignored
+}
+
+// New (go-dotignore) - single file
+matcher, err := dotignore.NewPatternMatcherFromFile(".gitignore")
+if ignored, _ := matcher.Matches("file.txt"); ignored {
+    // file is ignored
+}
+
+// New (go-dotignore) - nested files (like Git!)
+matcher, err := dotignore.NewRepositoryMatcher("/path/to/repo")
+if ignored, _ := matcher.Matches("frontend/node_modules/pkg.json"); ignored {
+    // file is ignored
 }
 ```
 

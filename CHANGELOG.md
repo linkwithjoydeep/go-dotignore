@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-02-09
+
+### Added
+- **Major Feature ([#4](https://github.com/linkwithjoydeep/go-dotignore/issues/4)):** Hierarchical .gitignore support for real-world repositories with nested .gitignore files
+  - New `RepositoryMatcher` type that automatically discovers and loads all .gitignore files in a directory tree
+  - Patterns from parent directories apply to subdirectories (matching Git's behavior)
+  - Child .gitignore files can override parent patterns using negation (`!`)
+  - Perfect for monorepos and complex project structures
+  - Example: `matcher, err := dotignore.NewRepositoryMatcher("/path/to/repo")`
+- New `RepositoryConfig` type for customizing repository matching behavior
+  - `IgnoreFileName`: Use custom ignore file names (default: ".gitignore")
+  - `MaxDepth`: Limit how deep to search for ignore files
+  - `FollowSymlinks`: Control whether to follow symbolic links
+- New `NewRepositoryMatcherWithConfig()` function for advanced configuration
+- New `MatchesWithTracking()` method on `PatternMatcher` to distinguish between "no pattern matched" and "negation pattern matched" (used internally by RepositoryMatcher)
+- Helper methods on `RepositoryMatcher`:
+  - `RootDir()`: Get the repository root directory
+  - `IgnoreFileCount()`: Get count of discovered .gitignore files
+  - `IgnoreFilePaths()`: Get list of all loaded .gitignore file paths
+- Comprehensive test suite for nested .gitignore support:
+  - `TestNewRepositoryMatcher`: Basic functionality tests
+  - `TestRepositoryMatcher_Matches_SimpleHierarchy`: Hierarchical pattern application
+  - `TestRepositoryMatcher_Matches_Negation`: Pattern negation across levels
+  - `TestRepositoryMatcher_Matches_MonorepoScenario`: Real-world monorepo example
+  - `TestRepositoryMatcher_Matches_OverrideParentPatterns`: Child overriding parent
+  - `TestRepositoryMatcher_Matches_RootRelativePatterns`: Root-relative patterns in nested files
+  - And 10+ additional test cases covering edge cases
+- Example code demonstrating nested .gitignore usage
+- Updated README with nested .gitignore documentation and comparison with go-gitignore
+
+### Comparison with go-gitignore
+This release addresses the key limitation mentioned in community discussions:
+- ✅ go-dotignore now supports nested .gitignore files (just like Git)
+- ✅ Full feature parity with go-gitignore + much more
+- ✅ Active maintenance and full gitignore spec compliance
+
+### Use Cases
+This feature is essential for:
+- Monorepo projects with multiple subprojects
+- Build tools that need to respect .gitignore rules
+- File walkers and code analyzers
+- Any tool that works with Git repositories
+- Projects migrating from go-gitignore
+
+### Performance
+- Efficient pattern caching per directory level
+- Lazy evaluation of patterns
+- No performance regression for single-file usage (PatternMatcher)
+
 ## [2.0.0] - 2025-02-09
 
 ### Fixed

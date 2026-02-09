@@ -122,6 +122,44 @@ func (p *PatternMatcher) Matches(file string) (bool, error) {
 	return p.matchesInternal(file)
 }
 
+// MatchesWithTracking checks if the given file path matches any patterns and also
+// returns whether any pattern (including negation patterns) matched at all.
+// This is useful for hierarchical matching where we need to know if a .gitignore
+// file had any applicable patterns.
+//
+// Returns: (shouldIgnore bool, anyPatternMatched bool, error)
+func (p *PatternMatcher) MatchesWithTracking(file string) (bool, bool, error) {
+	if file == "" {
+		return false, false, nil
+	}
+
+	// Clean and normalize the path
+	file = filepath.Clean(file)
+	if file == "." || file == "./" {
+		return false, false, nil
+	}
+
+	// Convert backslashes to forward slashes for consistent matching
+	file = strings.ReplaceAll(file, "\\", "/")
+
+	matched := false
+	anyPatternMatched := false
+
+	for _, pattern := range p.ignorePatterns {
+		isMatch, err := p.matchPattern(file, pattern)
+		if err != nil {
+			return false, false, fmt.Errorf("error matching pattern %q against file %q: %w", pattern.pattern, file, err)
+		}
+
+		if isMatch {
+			anyPatternMatched = true
+			matched = !pattern.negate
+		}
+	}
+
+	return matched, anyPatternMatched, nil
+}
+
 func buildIgnorePatterns(patterns []string) ([]ignorePattern, error) {
 	var ignorePatterns []ignorePattern
 
