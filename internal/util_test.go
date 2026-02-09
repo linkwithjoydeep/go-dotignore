@@ -301,69 +301,6 @@ func TestBuildRegexEdgeCases(t *testing.T) {
 	}
 }
 
-func TestNormalizePath(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "Forward slashes",
-			input:    "path/to/file",
-			expected: "path/to/file",
-		},
-		{
-			name:     "Backward slashes",
-			input:    "path\\to\\file",
-			expected: "path/to/file",
-		},
-		{
-			name:     "Mixed slashes",
-			input:    "path/to\\file",
-			expected: "path/to/file",
-		},
-		{
-			name:     "Double slashes",
-			input:    "path//to///file",
-			expected: "path/to/file",
-		},
-		{
-			name:     "Leading dot slash",
-			input:    "./path/to/file",
-			expected: "path/to/file",
-		},
-		{
-			name:     "Trailing slash",
-			input:    "path/to/file/",
-			expected: "path/to/file",
-		},
-		{
-			name:     "Root path",
-			input:    "/",
-			expected: "/",
-		},
-		{
-			name:     "Empty path",
-			input:    "",
-			expected: "",
-		},
-		{
-			name:     "Current directory",
-			input:    "./",
-			expected: "",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := NormalizePath(test.input)
-			if result != test.expected {
-				t.Errorf("NormalizePath(%q) = %q, want %q", test.input, result, test.expected)
-			}
-		})
-	}
-}
-
 func BenchmarkBuildRegex(b *testing.B) {
 	patterns := []string{
 		"*.txt",

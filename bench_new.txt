@@ -1,0 +1,11 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/codeglyph/go-dotignore
+cpu: Apple M4
+BenchmarkMatches-10    	   32959	     34893 ns/op	    5269 B/op	     266 allocs/op
+BenchmarkMatches-10    	   34664	     34992 ns/op	    5269 B/op	     266 allocs/op
+BenchmarkMatches-10    	   33694	     34848 ns/op	    5279 B/op	     266 allocs/op
+BenchmarkMatches-10    	   34681	     35816 ns/op	    5274 B/op	     266 allocs/op
+BenchmarkMatches-10    	   34510	     35124 ns/op	    5273 B/op	     266 allocs/op
+PASS
+ok  	github.com/codeglyph/go-dotignore	8.301s

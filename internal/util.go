@@ -134,25 +134,3 @@ func isRegexMetaChar(char byte) bool {
 	}
 }
 
-// NormalizePath normalizes a file path for consistent matching across platforms
-func NormalizePath(path string) string {
-	// Convert backslashes to forward slashes
-	path = strings.ReplaceAll(path, "\\", "/")
-
-	// Remove redundant slashes
-	for strings.Contains(path, "//") {
-		path = strings.ReplaceAll(path, "//", "/")
-	}
-
-	// Remove leading "./"
-	if strings.HasPrefix(path, "./") {
-		path = path[2:]
-	}
-
-	// Remove trailing slash unless it's the root
-	if len(path) > 1 && strings.HasSuffix(path, "/") {
-		path = path[:len(path)-1]
-	}
-
-	return path
-}

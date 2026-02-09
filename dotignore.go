@@ -1,3 +1,36 @@
+// Package dotignore provides gitignore-style pattern matching for file paths.
+//
+// This package implements the gitignore specification including:
+//   - Root-relative patterns with leading / (e.g., /build/ matches only at root)
+//   - Wildcard patterns with *, ?, and ** (e.g., *.txt, **/test/*, a?b)
+//   - Directory patterns with trailing / (e.g., logs/ matches directories)
+//   - Negation patterns with ! (e.g., !important.txt)
+//   - Escaped negation with \! (e.g., \!literal matches files starting with !)
+//   - Character classes with [] (e.g., [a-z], [0-9])
+//   - Pattern anchoring and path boundary matching
+//
+// IMPORTANT: Versions v1.0.0-v1.1.1 contain critical bugs and are retracted.
+// Please upgrade to v2.0.0 or later for full gitignore specification compliance.
+//
+// Example usage:
+//
+//	patterns := []string{
+//	    "/build/",     // Ignore build directory at root only
+//	    "*.log",       // Ignore all .log files
+//	    "!debug.log",  // But don't ignore debug.log
+//	}
+//	matcher, err := dotignore.NewPatternMatcher(patterns)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	shouldIgnore, err := matcher.Matches("build/output.txt")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	if shouldIgnore {
+//	    // Skip this file
+//	}
 package dotignore
 
 import (
@@ -13,11 +46,12 @@ import (
 )
 
 type ignorePattern struct {
-	pattern      string
-	regexPattern *regexp.Regexp
-	isDirectory  bool // true if pattern ends with /
-	negate       bool
-	hasWildcard  bool // true if pattern contains wildcards
+	pattern       string
+	regexPattern  *regexp.Regexp
+	isDirectory   bool // true if pattern ends with /
+	negate        bool
+	hasWildcard   bool // true if pattern contains wildcards
+	isRootRelative bool // true if pattern starts with / (matches only at root level)
 }
 
 // PatternMatcher provides methods to parse, store, and evaluate ignore patterns against file paths.
@@ -99,18 +133,32 @@ func buildIgnorePatterns(patterns []string) ([]ignorePattern, error) {
 			continue
 		}
 
-		// Handle negation
-		isNegation := strings.HasPrefix(pattern, "!")
-		if isNegation {
+		// Handle escaped negation (\!) before checking for actual negation
+		// In gitignore, \! at the start means "match files literally starting with !"
+		isNegation := false
+		if strings.HasPrefix(pattern, `\!`) {
+			// Escaped negation - remove the backslash, keep the !
+			pattern = pattern[1:] // Remove the backslash
+			isNegation = false
+		} else if strings.HasPrefix(pattern, "!") {
+			// Actual negation pattern
 			if len(pattern) == 1 {
 				return nil, fmt.Errorf("invalid pattern at line %d: single '!' is not allowed", i+1)
 			}
 			pattern = pattern[1:]
+			isNegation = true
 		}
 
 		// Convert backslashes to forward slashes for consistent handling
 		// filepath.ToSlash might not handle all cases, so we'll be explicit
 		pattern = strings.ReplaceAll(pattern, "\\", "/")
+
+		// Check if pattern is root-relative (starts with /)
+		// In gitignore, leading / means pattern is anchored to root
+		isRootRelative := strings.HasPrefix(pattern, "/")
+		if isRootRelative {
+			pattern = strings.TrimPrefix(pattern, "/")
+		}
 
 		// Check if pattern is for directories only (after normalization)
 		isDirectory := strings.HasSuffix(pattern, "/")
@@ -133,11 +181,12 @@ func buildIgnorePatterns(patterns []string) ([]ignorePattern, error) {
 		}
 
 		ignorePatterns = append(ignorePatterns, ignorePattern{
-			pattern:      pattern,
-			regexPattern: regexPattern,
-			isDirectory:  isDirectory,
-			negate:       isNegation,
-			hasWildcard:  hasWildcard,
+			pattern:        pattern,
+			regexPattern:   regexPattern,
+			isDirectory:    isDirectory,
+			negate:         isNegation,
+			hasWildcard:    hasWildcard,
+			isRootRelative: isRootRelative,
 		})
 	}
 
@@ -164,7 +213,45 @@ func (p *PatternMatcher) matchesInternal(file string) (bool, error) {
 
 // matchPattern checks if a file matches a specific pattern
 func (p *PatternMatcher) matchPattern(file string, pattern ignorePattern) (bool, error) {
-	// Try the regex pattern first
+	// Handle root-relative patterns (patterns starting with /)
+	// These should ONLY match at the root level, not in subdirectories
+	if pattern.isRootRelative {
+		// For root-relative patterns, only match if:
+		// 1. File exactly matches the pattern
+		// 2. File is inside the pattern directory (for directory patterns)
+		// 3. Pattern matches from the start (no parent directories before it)
+
+		// Direct regex match (already anchored to start with ^)
+		if pattern.regexPattern.MatchString(file) {
+			return true, nil
+		}
+
+		// For directory patterns like /build/, match build/ and build/anything
+		if pattern.isDirectory {
+			dirName := pattern.pattern
+			if file == dirName || file == dirName+"/" {
+				return true, nil
+			}
+			// Check if file is inside the directory
+			if strings.HasPrefix(file, dirName+"/") {
+				return true, nil
+			}
+		} else {
+			// For file patterns like /test.txt, check exact match or with extension
+			if file == pattern.pattern {
+				return true, nil
+			}
+			// Also check if pattern is a prefix (for paths like /src matching /src/file.txt)
+			if strings.HasPrefix(file, pattern.pattern+"/") {
+				return true, nil
+			}
+		}
+
+		// Root-relative patterns don't do subpath matching
+		return false, nil
+	}
+
+	// Non-root-relative patterns: try the regex pattern first
 	if pattern.regexPattern.MatchString(file) {
 		return true, nil
 	}
@@ -173,10 +260,15 @@ func (p *PatternMatcher) matchPattern(file string, pattern ignorePattern) (bool,
 	if pattern.isDirectory {
 		// Pattern like "build/" should match "build/" and anything inside "build/"
 		dirName := pattern.pattern
-		if file == dirName+"/" || file == dirName {
+		if file == dirName {
 			return true, nil
 		}
-		if strings.HasPrefix(file, dirName+"/") {
+		// Check if it ends with "/" first before allocating
+		if len(file) > len(dirName) && file[len(dirName)] == '/' && file[:len(dirName)] == dirName {
+			return true, nil
+		}
+		// Check if file ends with just "/"
+		if len(file) == len(dirName)+1 && file[len(file)-1] == '/' && file[:len(dirName)] == dirName {
 			return true, nil
 		}
 	}
@@ -194,10 +286,8 @@ func (p *PatternMatcher) matchPattern(file string, pattern ignorePattern) (bool,
 		}
 
 		// Also try matching the full path from different starting points
-		for i := 0; i < len(parts); i++ {
-			if i == 0 {
-				continue // already tried full path above
-			}
+		// Skip first iteration since we already tried the full path above
+		for i := 1; i < len(parts); i++ {
 			prefixPath := strings.Join(parts[:i], "/")
 			remainingPath := strings.Join(parts[i:], "/")
 
@@ -208,18 +298,30 @@ func (p *PatternMatcher) matchPattern(file string, pattern ignorePattern) (bool,
 		}
 	}
 
-	// For patterns with path separators, try matching as substring
+	// For patterns with path separators, check for matches at proper path boundaries
 	if strings.Contains(pattern.pattern, "/") {
-		// Pattern like "src/test.txt" should match exactly or as part of path
+		// Exact match (no allocation)
 		if file == pattern.pattern {
 			return true, nil
 		}
-		if strings.Contains(file, pattern.pattern) {
+
+		patternLen := len(pattern.pattern)
+
+		// Pattern at the beginning - check boundary without allocation
+		if len(file) > patternLen && file[patternLen] == '/' && file[:patternLen] == pattern.pattern {
 			return true, nil
 		}
 
-		// Try matching with different path boundaries
-		if strings.HasSuffix(file, "/"+pattern.pattern) || strings.HasSuffix(file, pattern.pattern) {
+		// Pattern at the end with boundary - check without allocation
+		if len(file) > patternLen && file[len(file)-patternLen:] == pattern.pattern {
+			if file[len(file)-patternLen-1] == '/' {
+				return true, nil
+			}
+		}
+
+		// Pattern in the middle with boundaries
+		// This does allocate but only once per call
+		if strings.Contains(file, "/"+pattern.pattern+"/") {
 			return true, nil
 		}
 	}

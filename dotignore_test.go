@@ -484,6 +484,457 @@ func TestMatchesEdgeCases(t *testing.T) {
 	}
 }
 
+func TestSubstringMatchingBug(t *testing.T) {
+	// Test for the substring matching bug where patterns with "/" incorrectly
+	// match files that contain the pattern as a substring without proper path boundaries
+	patterns := []string{
+		"src/test",
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		{"src/test", true, "exact match should work"},
+		{"src/test/file.js", true, "pattern should match directory and its contents"},
+		{"foo/src/test", true, "pattern should match at path boundaries"},
+		{"foo/src/test/bar.js", true, "pattern should match at path boundaries with nested files"},
+		{"mysrc/test", false, "should NOT match - 'src' is not at path boundary"},
+		{"src/test2", false, "should NOT match - 'test' is not at path boundary"},
+		{"foo/mysrc/test", false, "should NOT match - 'src' is not at path boundary in subdirectory"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s: %v", tt.file, err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+		}
+	}
+}
+
+func TestEscapedNegation(t *testing.T) {
+	// Test escaped negation pattern \! which should match files starting with literal "!"
+	// According to gitignore spec, \! at the start means "match literal !", not a negation
+	patterns := []string{
+		"*.log",           // Ignore all .log files
+		"!important.log",  // Negate: don't ignore important.log
+		`\!special.log`,   // Escaped: match files literally named "!special.log"
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		{"test.log", true, "*.log should match"},
+		{"important.log", false, "!important.log negates the match"},
+		{"!special.log", true, `\!special.log should match files literally named "!special.log"`},
+		{"special.log", true, "*.log should match"},
+		{"test.txt", false, "should not match - different extension"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s: %v", tt.file, err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+		}
+	}
+}
+
+func TestEscapedNegationWithoutOtherPatterns(t *testing.T) {
+	// Test escaped negation pattern in isolation
+	patterns := []string{
+		`\!important.txt`,
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		{"!important.txt", true, "should match file literally named '!important.txt'"},
+		{"important.txt", false, "should not match - no leading '!'"},
+		{"test.txt", false, "should not match - different file"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s: %v", tt.file, err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+		}
+	}
+}
+
+func TestUnicodePatterns(t *testing.T) {
+	// Test Unicode and non-ASCII patterns
+	patterns := []string{
+		"日本語.txt",       // Japanese
+		"файл.log",        // Russian
+		"🎉celebration.md", // Emoji
+		"café/*.txt",      // Accented characters
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		{"日本語.txt", true, "should match Japanese filename"},
+		{"другой日本語.txt", false, "should not match different file"},
+		{"файл.log", true, "should match Russian filename"},
+		{"🎉celebration.md", true, "should match emoji filename"},
+		{"café/test.txt", true, "should match files in café directory"},
+		{"cafe/test.txt", false, "café and cafe are different (no accent)"},
+		{"normal.txt", false, "should not match ASCII-only files"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s: %v", tt.file, err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+		}
+	}
+}
+
+func TestVeryDeepPaths(t *testing.T) {
+	// Test very deep directory hierarchies (100+ levels)
+	patterns := []string{
+		"**/target.txt", // Should match at any depth
+		"deep/**/file",  // Should match in deep subdirectories
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	// Build a very deep path (100 levels)
+	deepPath := ""
+	for i := 0; i < 100; i++ {
+		if i > 0 {
+			deepPath += "/"
+		}
+		deepPath += "level"
+	}
+	deepPath += "/target.txt"
+
+	// Build another deep path with "deep" at the start
+	deepPath2 := "deep"
+	for i := 0; i < 50; i++ {
+		deepPath2 += "/subdir"
+	}
+	deepPath2 += "/file"
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		{deepPath, true, "should match target.txt at 100 levels deep"},
+		{deepPath2, true, "should match file in deep subdirectories"},
+		{"level/level/target.txt", true, "should match at shallower depths too"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s: %v", tt.file, err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+		}
+	}
+}
+
+func TestConsecutiveWildcards(t *testing.T) {
+	// Test patterns with consecutive wildcards
+	patterns := []string{
+		"*?*",         // Multiple wildcards: * (0+) + ? (1) + * (0+) = min 1 char
+		"?*?",         // Question mark with asterisk: ? (1) + * (0+) + ? (1) = min 2 chars
+		"a*?*c.txt",   // Complex pattern
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		{"ab", true, "*?* matches: *(0) + ?(a) + *(b) or *(a) + ?(b) + *(0)"},
+		{"abc", true, "*?* should match longer filenames"},
+		{"a", true, "*?* matches: *(0) + ?(a) + *(0)"},
+		{"axc.txt", true, "a*?*c.txt should match with chars in between"},
+		{"abc.txt", true, "a*?*c.txt matches with b in between"},
+		{"ac.txt", true, "a*?*c.txt: a + *(0) + ?(c) + *(.txt) works via subpath matching"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s: %v", tt.file, err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+		}
+	}
+}
+
+func TestVeryLongPatterns(t *testing.T) {
+	// Test very long patterns (1000+ characters)
+	longDirName := ""
+	for i := 0; i < 1000; i++ {
+		longDirName += "a"
+	}
+
+	patterns := []string{
+		longDirName + ".txt",
+		"*/" + longDirName,
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		{longDirName + ".txt", true, "should match very long filename"},
+		{"dir/" + longDirName, true, "should match long filename in subdirectory"},
+		{longDirName + "b.txt", false, "should not match different long filename"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s (length %d): %v", "LONG_PATH", len(tt.file), err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File length %d: expected %v, got %v - %s", len(tt.file), tt.expected, result, tt.reason)
+		}
+	}
+}
+
+func TestEdgeCasePatterns(t *testing.T) {
+	// Test edge case patterns that might cause issues
+	tests := []struct {
+		name     string
+		patterns []string
+		file     string
+		expected bool
+		reason   string
+	}{
+		{
+			name:     "Multiple consecutive slashes in file path",
+			patterns: []string{"src/test.txt"},
+			file:     "src//test.txt",
+			expected: true,
+			reason:   "filepath.Clean normalizes // to /, so this should match",
+		},
+		{
+			name:     "Pattern with wildcard at boundaries",
+			patterns: []string{"*test*"},
+			file:     "test",
+			expected: true,
+			reason:   "should match when wildcard matches zero characters",
+		},
+		{
+			name:     "Empty directory name components",
+			patterns: []string{"a/b"},
+			file:     "a//b",
+			expected: true,
+			reason:   "filepath.Clean normalizes a//b to a/b, so this should match",
+		},
+		{
+			name:     "Character class edge cases",
+			patterns: []string{"[a-z][0-9]"},
+			file:     "a0",
+			expected: true,
+			reason:   "should match character class at boundaries",
+		},
+		{
+			name:     "Multiple wildcards in directory",
+			patterns: []string{"**/test/**/*.txt"},
+			file:     "a/b/test/c/d/file.txt",
+			expected: true,
+			reason:   "should match with multiple ** wildcards",
+		},
+		{
+			name:     "Pattern with spaces",
+			patterns: []string{"my file.txt"},
+			file:     "my file.txt",
+			expected: true,
+			reason:   "should match filenames with spaces",
+		},
+		{
+			name:     "Very short pattern",
+			patterns: []string{"a"},
+			file:     "a",
+			expected: true,
+			reason:   "should match single character patterns",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			matcher, err := NewPatternMatcher(tt.patterns)
+			if err != nil {
+				t.Fatalf("Failed to create matcher: %v", err)
+			}
+
+			result, err := matcher.Matches(tt.file)
+			if err != nil {
+				t.Errorf("Error matching file %s: %v", tt.file, err)
+				return
+			}
+			if result != tt.expected {
+				t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+			}
+		})
+	}
+}
+
+func TestLeadingSlashPatterns(t *testing.T) {
+	// Test leading slash patterns (gitignore spec: / prefix means root-relative)
+	// Issue: https://github.com/linkwithjoydeep/go-dotignore/issues/5
+	patterns := []string{
+		"/build/",   // Should match ONLY root-level build/, not nested
+		"/test.txt", // Should match ONLY root-level test.txt
+		"logs/",     // Should match logs/ anywhere (no leading slash)
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		// Pattern: /build/ (root-relative)
+		{"build/", true, "/build/ should match root-level build/"},
+		{"build/file.txt", true, "/build/ should match files in root build/"},
+		{"src/build/", false, "/build/ should NOT match nested build/ (Issue #5)"},
+		{"src/build/file.txt", false, "/build/ should NOT match files in nested build/"},
+		{"build", true, "/build/ should match build without trailing slash"},
+
+		// Pattern: /test.txt (root-relative file)
+		{"test.txt", true, "/test.txt should match root-level file"},
+		{"src/test.txt", false, "/test.txt should NOT match nested file"},
+		{"test/test.txt", false, "/test.txt should NOT match in subdirectory"},
+
+		// Pattern: logs/ (non-root-relative, should match anywhere)
+		{"logs/", true, "logs/ should match at root"},
+		{"logs/app.log", true, "logs/ should match files in root logs/"},
+		{"src/logs/", true, "logs/ should match nested logs/ (no leading slash)"},
+		{"src/logs/app.log", true, "logs/ should match files in nested logs/"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s: %v", tt.file, err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+		}
+	}
+}
+
+func TestRootRelativeWithWildcards(t *testing.T) {
+	// Test root-relative patterns with wildcards
+	patterns := []string{
+		"/*.txt",      // Only .txt files at root
+		"/src/*.go",   // Only .go files in root-level src/
+		"/test/**",    // Everything in root-level test/
+	}
+
+	matcher, err := NewPatternMatcher(patterns)
+	if err != nil {
+		t.Fatalf("Failed to create matcher: %v", err)
+	}
+
+	tests := []struct {
+		file     string
+		expected bool
+		reason   string
+	}{
+		// Pattern: /*.txt
+		{"file.txt", true, "/*.txt should match root-level .txt"},
+		{"dir/file.txt", false, "/*.txt should NOT match nested .txt"},
+
+		// Pattern: /src/*.go
+		{"src/main.go", true, "/src/*.go should match .go in root src/"},
+		{"src/util/helper.go", false, "/src/*.go should NOT match nested .go in src/"},
+		{"lib/src/main.go", false, "/src/*.go should NOT match in nested src/ directory"},
+
+		// Pattern: /test/**
+		{"test/file.txt", true, "/test/** should match files in root test/"},
+		{"test/sub/file.txt", true, "/test/** should match deeply nested in root test/"},
+		{"src/test/file.txt", false, "/test/** should NOT match in nested test/ directory"},
+	}
+
+	for _, tt := range tests {
+		result, err := matcher.Matches(tt.file)
+		if err != nil {
+			t.Errorf("Error matching file %s: %v", tt.file, err)
+			continue
+		}
+		if result != tt.expected {
+			t.Errorf("File %q: expected %v, got %v - %s", tt.file, tt.expected, result, tt.reason)
+		}
+	}
+}
+
 func TestComplexPatterns(t *testing.T) {
 	patterns := []string{
 		"**/*.log",        // All .log files anywhere
