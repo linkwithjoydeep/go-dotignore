@@ -1,4 +1,4 @@
-[![build](https://github.com/codeglyph/go-dotignore/v2/actions/workflows/build.yml/badge.svg)](https://github.com/codeglyph/go-dotignore/v2/actions/workflows/build.yml)
+[![build](https://github.com/codeglyph/go-dotignore/actions/workflows/build.yml/badge.svg)](https://github.com/codeglyph/go-dotignore/actions/workflows/build.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/codeglyph/go-dotignore/v2)](https://goreportcard.com/report/github.com/codeglyph/go-dotignore/v2)
 [![GoDoc](https://godoc.org/github.com/codeglyph/go-dotignore/v2?status.svg)](https://godoc.org/github.com/codeglyph/go-dotignore/v2)
 [![GitHub release](https://img.shields.io/github/v/release/codeglyph/go-dotignore)](https://github.com/codeglyph/go-dotignore/v2/releases)
