@@ -526,9 +526,9 @@ func TestEscapedNegation(t *testing.T) {
 	// Test escaped negation pattern \! which should match files starting with literal "!"
 	// According to gitignore spec, \! at the start means "match literal !", not a negation
 	patterns := []string{
-		"*.log",           // Ignore all .log files
-		"!important.log",  // Negate: don't ignore important.log
-		`\!special.log`,   // Escaped: match files literally named "!special.log"
+		"*.log",          // Ignore all .log files
+		"!important.log", // Negate: don't ignore important.log
+		`\!special.log`,  // Escaped: match files literally named "!special.log"
 	}
 
 	matcher, err := NewPatternMatcher(patterns)
@@ -596,7 +596,7 @@ func TestEscapedNegationWithoutOtherPatterns(t *testing.T) {
 func TestUnicodePatterns(t *testing.T) {
 	// Test Unicode and non-ASCII patterns
 	patterns := []string{
-		"日本語.txt",       // Japanese
+		"日本語.txt",         // Japanese
 		"файл.log",        // Russian
 		"🎉celebration.md", // Emoji
 		"café/*.txt",      // Accented characters
@@ -687,9 +687,9 @@ func TestVeryDeepPaths(t *testing.T) {
 func TestConsecutiveWildcards(t *testing.T) {
 	// Test patterns with consecutive wildcards
 	patterns := []string{
-		"*?*",         // Multiple wildcards: * (0+) + ? (1) + * (0+) = min 1 char
-		"?*?",         // Question mark with asterisk: ? (1) + * (0+) + ? (1) = min 2 chars
-		"a*?*c.txt",   // Complex pattern
+		"*?*",       // Multiple wildcards: * (0+) + ? (1) + * (0+) = min 1 char
+		"?*?",       // Question mark with asterisk: ? (1) + * (0+) + ? (1) = min 2 chars
+		"a*?*c.txt", // Complex pattern
 	}
 
 	matcher, err := NewPatternMatcher(patterns)
@@ -893,9 +893,9 @@ func TestLeadingSlashPatterns(t *testing.T) {
 func TestRootRelativeWithWildcards(t *testing.T) {
 	// Test root-relative patterns with wildcards
 	patterns := []string{
-		"/*.txt",      // Only .txt files at root
-		"/src/*.go",   // Only .go files in root-level src/
-		"/test/**",    // Everything in root-level test/
+		"/*.txt",    // Only .txt files at root
+		"/src/*.go", // Only .go files in root-level src/
+		"/test/**",  // Everything in root-level test/
 	}
 
 	matcher, err := NewPatternMatcher(patterns)

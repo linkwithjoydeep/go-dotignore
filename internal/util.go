@@ -41,87 +41,78 @@ func BuildRegex(pattern string) (*regexp.Regexp, error) {
 		return nil, fmt.Errorf("pattern cannot be empty")
 	}
 
-	var regexBuilder strings.Builder
-	regexBuilder.WriteString("^")
+	var sb strings.Builder
+	sb.WriteString("^")
 
-	i := 0
-	for i < len(pattern) {
-		char := pattern[i]
-
-		switch char {
+	for i := 0; i < len(pattern); i++ {
+		switch char := pattern[i]; char {
 		case '*':
-			if i+1 < len(pattern) && pattern[i+1] == '*' {
-				// Handle "**" double wildcard
-				i++ // consume the second '*'
-
-				// Check what follows the "**"
-				if i+1 < len(pattern) && pattern[i+1] == '/' {
-					// "**/" - matches zero or more directories
-					i++ // consume the '/'
-					regexBuilder.WriteString("(.*?/)?")
-				} else if i+1 == len(pattern) {
-					// "**" at end - matches anything
-					regexBuilder.WriteString(".*")
-				} else {
-					// "**" followed by something else - treat as ".*"
-					regexBuilder.WriteString(".*")
-				}
-			} else {
-				// Single "*" - matches any characters except '/'
-				regexBuilder.WriteString("[^/]*")
-			}
+			i = writeWildcard(pattern, i, &sb)
 		case '?':
-			// Single character wildcard (except '/')
-			regexBuilder.WriteString("[^/]")
+			sb.WriteString("[^/]")
 		case '[':
-			// Character class - find the closing bracket
-			j := i + 1
-			for j < len(pattern) && pattern[j] != ']' {
-				j++
-			}
-			if j < len(pattern) {
-				// Valid character class - write it as-is (it's already valid regex)
-				charClass := pattern[i : j+1]
-				regexBuilder.WriteString(charClass)
-				i = j
-			} else {
-				// No closing bracket, treat as literal
-				regexBuilder.WriteString("\\[")
-			}
+			i = writeCharClass(pattern, i, &sb)
 		case '.', '+', '^', '$', '(', ')', '{', '}', '|':
-			// Escape regex metacharacters
-			regexBuilder.WriteString("\\")
-			regexBuilder.WriteByte(char)
+			sb.WriteByte('\\')
+			sb.WriteByte(char)
 		case '\\':
-			// Handle escaping
-			if i+1 < len(pattern) {
-				i++
-				nextChar := pattern[i]
-				// Escape the next character
-				if isRegexMetaChar(nextChar) {
-					regexBuilder.WriteString("\\")
-				}
-				regexBuilder.WriteByte(nextChar)
-			} else {
-				// Trailing backslash
-				regexBuilder.WriteString("\\\\")
-			}
+			i = writeEscaped(pattern, i, &sb)
 		default:
-			// Regular character
-			regexBuilder.WriteByte(char)
+			sb.WriteByte(char)
 		}
-		i++
 	}
 
-	regexBuilder.WriteString("$")
+	sb.WriteString("$")
 
-	regexStr := regexBuilder.String()
-	regex, err := regexp.Compile(regexStr)
+	regex, err := regexp.Compile(sb.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to compile regex %q: %w", regexStr, err)
+		return nil, fmt.Errorf("failed to compile regex %q: %w", sb.String(), err)
 	}
-
 	return regex, nil
+}
+
+// writeWildcard writes the regex equivalent of * or ** at position i and returns the new index.
+func writeWildcard(pattern string, i int, sb *strings.Builder) int {
+	if i+1 < len(pattern) && pattern[i+1] == '*' {
+		i++ // consume second '*'
+		if i+1 < len(pattern) && pattern[i+1] == '/' {
+			i++ // consume '/'
+			sb.WriteString("(.*?/)?")
+		} else {
+			sb.WriteString(".*")
+		}
+	} else {
+		sb.WriteString("[^/]*")
+	}
+	return i
+}
+
+// writeCharClass writes a character class [...] and returns the new index.
+func writeCharClass(pattern string, i int, sb *strings.Builder) int {
+	j := i + 1
+	for j < len(pattern) && pattern[j] != ']' {
+		j++
+	}
+	if j < len(pattern) {
+		sb.WriteString(pattern[i : j+1])
+		return j
+	}
+	sb.WriteString("\\[")
+	return i
+}
+
+// writeEscaped writes an escaped character and returns the new index.
+func writeEscaped(pattern string, i int, sb *strings.Builder) int {
+	if i+1 < len(pattern) {
+		i++
+		if isRegexMetaChar(pattern[i]) {
+			sb.WriteByte('\\')
+		}
+		sb.WriteByte(pattern[i])
+	} else {
+		sb.WriteString("\\\\")
+	}
+	return i
 }
 
 // isRegexMetaChar checks if a character has special meaning in regex
@@ -133,4 +124,3 @@ func isRegexMetaChar(char byte) bool {
 		return false
 	}
 }
-

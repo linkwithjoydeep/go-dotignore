@@ -46,11 +46,11 @@ import (
 )
 
 type ignorePattern struct {
-	pattern       string
-	regexPattern  *regexp.Regexp
-	isDirectory   bool // true if pattern ends with /
-	negate        bool
-	hasWildcard   bool // true if pattern contains wildcards
+	pattern        string
+	regexPattern   *regexp.Regexp
+	isDirectory    bool // true if pattern ends with /
+	negate         bool
+	hasWildcard    bool // true if pattern contains wildcards
 	isRootRelative bool // true if pattern starts with / (matches only at root level)
 }
 
@@ -251,128 +251,86 @@ func (p *PatternMatcher) matchesInternal(file string) (bool, error) {
 
 // matchPattern checks if a file matches a specific pattern
 func (p *PatternMatcher) matchPattern(file string, pattern ignorePattern) (bool, error) {
-	// Handle root-relative patterns (patterns starting with /)
-	// These should ONLY match at the root level, not in subdirectories
 	if pattern.isRootRelative {
-		// For root-relative patterns, only match if:
-		// 1. File exactly matches the pattern
-		// 2. File is inside the pattern directory (for directory patterns)
-		// 3. Pattern matches from the start (no parent directories before it)
-
-		// Direct regex match (already anchored to start with ^)
-		if pattern.regexPattern.MatchString(file) {
-			return true, nil
-		}
-
-		// For directory patterns like /build/, match build/ and build/anything
-		if pattern.isDirectory {
-			dirName := pattern.pattern
-			if file == dirName || file == dirName+"/" {
-				return true, nil
-			}
-			// Check if file is inside the directory
-			if strings.HasPrefix(file, dirName+"/") {
-				return true, nil
-			}
-		} else {
-			// For file patterns like /test.txt, check exact match or with extension
-			if file == pattern.pattern {
-				return true, nil
-			}
-			// Also check if pattern is a prefix (for paths like /src matching /src/file.txt)
-			if strings.HasPrefix(file, pattern.pattern+"/") {
-				return true, nil
-			}
-		}
-
-		// Root-relative patterns don't do subpath matching
-		return false, nil
+		return matchRootRelativePattern(file, pattern), nil
 	}
-
-	// Non-root-relative patterns: try the regex pattern first
 	if pattern.regexPattern.MatchString(file) {
 		return true, nil
 	}
-
-	// Special handling for directory patterns
-	if pattern.isDirectory {
-		// Pattern like "build/" should match "build/" and anything inside "build/"
-		dirName := pattern.pattern
-		if file == dirName {
-			return true, nil
-		}
-		// Check if it ends with "/" first before allocating
-		if len(file) > len(dirName) && file[len(dirName)] == '/' && file[:len(dirName)] == dirName {
-			return true, nil
-		}
-		// Check if file ends with just "/"
-		if len(file) == len(dirName)+1 && file[len(file)-1] == '/' && file[:len(dirName)] == dirName {
-			return true, nil
-		}
+	if pattern.isDirectory && matchDirectoryPattern(file, pattern) {
+		return true, nil
 	}
-
-	// For patterns with wildcards, try matching parts of the path
-	if pattern.hasWildcard {
-		parts := strings.Split(file, "/")
-
-		// For patterns like "src/*.txt", try matching against subpaths
-		for i := 0; i < len(parts); i++ {
-			subPath := strings.Join(parts[i:], "/")
-			if pattern.regexPattern.MatchString(subPath) {
-				return true, nil
-			}
-		}
-
-		// Also try matching the full path from different starting points
-		// Skip first iteration since we already tried the full path above
-		for i := 1; i < len(parts); i++ {
-			prefixPath := strings.Join(parts[:i], "/")
-			remainingPath := strings.Join(parts[i:], "/")
-
-			// Check if pattern could match from this point
-			if pattern.regexPattern.MatchString(prefixPath + "/" + remainingPath) {
-				return true, nil
-			}
-		}
+	if pattern.hasWildcard && matchWildcardSubpaths(file, pattern) {
+		return true, nil
 	}
-
-	// For patterns with path separators, check for matches at proper path boundaries
 	if strings.Contains(pattern.pattern, "/") {
-		// Exact match (no allocation)
-		if file == pattern.pattern {
-			return true, nil
-		}
+		return matchPathSeparatorPattern(file, pattern), nil
+	}
+	return matchSimplePattern(file, pattern), nil
+}
 
-		patternLen := len(pattern.pattern)
+// matchRootRelativePattern handles patterns anchored to the root (starting with /).
+func matchRootRelativePattern(file string, pattern ignorePattern) bool {
+	if pattern.regexPattern.MatchString(file) {
+		return true
+	}
+	if pattern.isDirectory {
+		dirName := pattern.pattern
+		return file == dirName || file == dirName+"/" || strings.HasPrefix(file, dirName+"/")
+	}
+	return file == pattern.pattern || strings.HasPrefix(file, pattern.pattern+"/")
+}
 
-		// Pattern at the beginning - check boundary without allocation
-		if len(file) > patternLen && file[patternLen] == '/' && file[:patternLen] == pattern.pattern {
-			return true, nil
-		}
+// matchDirectoryPattern handles directory-only patterns (trailing /).
+func matchDirectoryPattern(file string, pattern ignorePattern) bool {
+	dirName := pattern.pattern
+	if file == dirName {
+		return true
+	}
+	if len(file) > len(dirName) && file[len(dirName)] == '/' && file[:len(dirName)] == dirName {
+		return true
+	}
+	return len(file) == len(dirName)+1 && file[len(file)-1] == '/' && file[:len(dirName)] == dirName
+}
 
-		// Pattern at the end with boundary - check without allocation
-		if len(file) > patternLen && file[len(file)-patternLen:] == pattern.pattern {
-			if file[len(file)-patternLen-1] == '/' {
-				return true, nil
-			}
-		}
-
-		// Pattern in the middle with boundaries
-		// This does allocate but only once per call
-		if strings.Contains(file, "/"+pattern.pattern+"/") {
-			return true, nil
+// matchWildcardSubpaths tries the pattern against all sub-paths of file.
+func matchWildcardSubpaths(file string, pattern ignorePattern) bool {
+	parts := strings.Split(file, "/")
+	for i := 0; i < len(parts); i++ {
+		if pattern.regexPattern.MatchString(strings.Join(parts[i:], "/")) {
+			return true
 		}
 	}
-
-	// For simple patterns (no path separators), check filename components
-	if !strings.Contains(pattern.pattern, "/") {
-		parts := strings.Split(file, "/")
-		for _, part := range parts {
-			if pattern.regexPattern.MatchString(part) {
-				return true, nil
-			}
+	for i := 1; i < len(parts); i++ {
+		combined := strings.Join(parts[:i], "/") + "/" + strings.Join(parts[i:], "/")
+		if pattern.regexPattern.MatchString(combined) {
+			return true
 		}
 	}
+	return false
+}
 
-	return false, nil
+// matchPathSeparatorPattern handles patterns that contain a path separator.
+func matchPathSeparatorPattern(file string, pattern ignorePattern) bool {
+	if file == pattern.pattern {
+		return true
+	}
+	patternLen := len(pattern.pattern)
+	if len(file) > patternLen && file[patternLen] == '/' && file[:patternLen] == pattern.pattern {
+		return true
+	}
+	if len(file) > patternLen && file[len(file)-patternLen:] == pattern.pattern && file[len(file)-patternLen-1] == '/' {
+		return true
+	}
+	return strings.Contains(file, "/"+pattern.pattern+"/")
+}
+
+// matchSimplePattern handles patterns without path separators by checking each path component.
+func matchSimplePattern(file string, pattern ignorePattern) bool {
+	for _, part := range strings.Split(file, "/") {
+		if pattern.regexPattern.MatchString(part) {
+			return true
+		}
+	}
+	return false
 }
