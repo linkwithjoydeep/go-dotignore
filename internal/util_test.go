@@ -301,6 +301,55 @@ func TestBuildRegexEdgeCases(t *testing.T) {
 	}
 }
 
+func TestContains(t *testing.T) {
+	tests := []struct {
+		name     string
+		slice    []string
+		item     string
+		expected bool
+	}{
+		{
+			name:     "Item present",
+			slice:    []string{"banana", "apple", "cherry"},
+			item:     "apple",
+			expected: true,
+		},
+		{
+			name:     "Item not present",
+			slice:    []string{"apple", "banana", "cherry"},
+			item:     "date",
+			expected: false,
+		},
+		{
+			name:     "Empty slice",
+			slice:    []string{},
+			item:     "apple",
+			expected: false,
+		},
+		{
+			name:     "Duplicate elements",
+			slice:    []string{"apple", "banana", "apple", "cherry"},
+			item:     "apple",
+			expected: true,
+		},
+		{
+			name:     "Case sensitive match",
+			slice:    []string{"Apple", "BANANA", "cherry"},
+			item:     "apple",
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := Contains(test.slice, test.item)
+			if result != test.expected {
+				t.Errorf("Contains(%v, %q) = %v; expected %v", test.slice, test.item, result, test.expected)
+			}
+		})
+	}
+}
+
 func BenchmarkBuildRegex(b *testing.B) {
 	patterns := []string{
 		"*.txt",

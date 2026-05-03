@@ -7,8 +7,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
+
+	"github.com/codeglyph/go-dotignore/v2/internal"
 )
 
 // RepositoryMatcher provides hierarchical .gitignore pattern matching that mirrors
@@ -123,7 +124,7 @@ func (rm *RepositoryMatcher) discoverIgnoreFiles(config *RepositoryConfig) error
 			return err
 		}
 
-		if d.IsDir() && slices.Contains(config.SkipFolders, d.Name()) {
+		if d.IsDir() && internal.Contains(config.SkipFolders, d.Name()) {
 			return fs.SkipDir
 		}
 
