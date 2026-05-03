@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-05-03
+
+### Added
+- **Feature ([#6](https://github.com/linkwithjoydeep/go-dotignore/issues/6)):** `RepositoryConfig.SkipFolders` to skip selected directories while discovering nested ignore files
+  - Speeds up repository initialization by skipping known heavy directories (for example `node_modules`, `vendor`, `.git`)
+  - Applies during repository tree traversal and prevents loading ignore files from skipped directories
+- Added internal `Contains()` helper used by repository traversal skip checks
+- Added godoc coverage for `Contains()`
+
+### Changed
+- Dropped `slices` dependency usage for skip-folder checks in repository scanning path
+
+### Credits
+- Thanks to [@marcelherhold](https://github.com/marcelherhold) for PR [#6](https://github.com/linkwithjoydeep/go-dotignore/pull/6)
+
 ## [2.1.0] - 2026-02-09
 
 ### Added

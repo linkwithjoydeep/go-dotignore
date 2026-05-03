@@ -9,7 +9,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/codeglyph/go-dotignore)](https://github.com/codeglyph/go-dotignore/v2/releases)
 # go-dotignore
 
-> **⚠️ IMPORTANT:** If you're using v1.x.x, please upgrade to **v2.0.1+** immediately.
+> **⚠️ IMPORTANT:** If you're using v1.x.x, please upgrade to **v2.2.0+** immediately.
 > Versions v1.0.0-v1.1.1 contain **critical bugs** and have been retracted:
 > - ❌ Root-relative patterns (`/pattern`) don't work at all
 > - ❌ Substring matching causes false positives
@@ -37,20 +37,21 @@
 
 ## Installation
 
-**Recommended (v2.0.1+):**
+**Recommended (v2.2.0+):**
 ```bash
 go get github.com/codeglyph/go-dotignore/v2@latest
 ```
 
 Or in your `go.mod`:
 ```go
-require github.com/codeglyph/go-dotignore/v2 v2.0.1
+require github.com/codeglyph/go-dotignore/v2 v2.2.0
 ```
 
 **⚠️ Important Notes:**
 - v2+ requires the `/v2` suffix in the import path (Go module semantic versioning requirement)
 - v2.0.0 was released with incorrect module path - use v2.0.1+
 - Versions v1.0.0-v1.1.1 are retracted due to critical bugs
+- v2.2.0 adds `RepositoryConfig.SkipFolders` for faster repository scanning in large trees
 
 ## Quick Start
 
@@ -254,6 +255,7 @@ config := &dotignore.RepositoryConfig{
     IgnoreFileName: ".gitignore",  // Name of ignore files (default: ".gitignore")
     MaxDepth:       10,             // Limit directory depth (0 = unlimited)
     FollowSymlinks: false,          // Whether to follow symbolic links
+    SkipFolders:    []string{"node_modules", "vendor", ".git"}, // Skip traversal for these dirs
 }
 
 matcher, err := dotignore.NewRepositoryMatcherWithConfig("/path/to/repo", config)
