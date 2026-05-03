@@ -34,6 +34,16 @@ func ReadLines(reader io.Reader) ([]string, error) {
 	return lines, nil
 }
 
+// Contains checks if a slice contains a specific string.
+func Contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
 // BuildRegex converts a gitignore-style pattern to a regular expression.
 // It properly handles wildcards, escaping, and gitignore-specific rules.
 func BuildRegex(pattern string) (*regexp.Regexp, error) {

@@ -25,10 +25,10 @@ func ExampleNewRepositoryMatcher() {
 
 	// Check files against hierarchical patterns
 	files := []string{
-		"app.log",                              // Matched by root .gitignore
-		"frontend/node_modules/pkg/index.js",   // Matched by frontend/.gitignore
-		"backend/target/classes/Main.class",    // Matched by backend/.gitignore
-		"frontend/src/App.js",                  // Not matched
+		"app.log",                            // Matched by root .gitignore
+		"frontend/node_modules/pkg/index.js", // Matched by frontend/.gitignore
+		"backend/target/classes/Main.class",  // Matched by backend/.gitignore
+		"frontend/src/App.js",                // Not matched
 	}
 
 	for _, file := range files {
@@ -52,9 +52,9 @@ func ExampleRepositoryMatcher_Matches() {
 	}
 
 	files := []string{
-		"file.txt",                  // Ignored by root
-		"important/file.txt",        // Still ignored by root
-		"important/critical.txt",    // Un-ignored by important/.gitignore
+		"file.txt",               // Ignored by root
+		"important/file.txt",     // Still ignored by root
+		"important/critical.txt", // Un-ignored by important/.gitignore
 	}
 
 	for _, file := range files {
@@ -71,9 +71,10 @@ func ExampleRepositoryMatcher_Matches() {
 // for repository matching, such as limiting depth or using custom ignore file names.
 func ExampleNewRepositoryMatcherWithConfig() {
 	config := &dotignore.RepositoryConfig{
-		IgnoreFileName: ".ignore",  // Use .ignore instead of .gitignore
-		MaxDepth:       3,           // Only search 3 levels deep
-		FollowSymlinks: false,       // Don't follow symbolic links
+		IgnoreFileName: ".ignore",                                     // Use .ignore instead of .gitignore
+		MaxDepth:       3,                                             // Only search 3 levels deep
+		FollowSymlinks: false,                                         // Don't follow symbolic links
+		SkipFolders:    []string{"node_modules", ".terragrunt-cache"}, // Don't search .gitignore in these folders
 	}
 
 	matcher, err := dotignore.NewRepositoryMatcherWithConfig("/path/to/repo", config)
@@ -113,9 +114,9 @@ func ExampleRepositoryMatcher_monorepo() {
 	// Global patterns apply everywhere
 	fmt.Println("Global patterns:")
 	globalFiles := []string{
-		"app.log",           // Matched by root
-		"frontend/app.log",  // Also matched by root
-		".DS_Store",         // Matched by root
+		"app.log",          // Matched by root
+		"frontend/app.log", // Also matched by root
+		".DS_Store",        // Matched by root
 	}
 	for _, file := range globalFiles {
 		ignored, _ := matcher.Matches(file)
@@ -125,9 +126,9 @@ func ExampleRepositoryMatcher_monorepo() {
 	// Subproject-specific patterns
 	fmt.Println("\nSubproject patterns:")
 	subprojectFiles := []string{
-		"frontend/node_modules/react/index.js",  // Frontend specific
-		"backend/target/output.jar",              // Backend specific
-		"docs/_build/html/index.html",            // Docs specific
+		"frontend/node_modules/react/index.js", // Frontend specific
+		"backend/target/output.jar",            // Backend specific
+		"docs/_build/html/index.html",          // Docs specific
 	}
 	for _, file := range subprojectFiles {
 		ignored, _ := matcher.Matches(file)
