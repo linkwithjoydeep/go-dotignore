@@ -1,8 +1,12 @@
+<p align="center">
+  <img src="assets/icon.svg" width="120" />
+</p>
+<h1 align="center">go-dotignore</h1>
+
 [![build](https://github.com/codeglyph/go-dotignore/actions/workflows/build.yml/badge.svg)](https://github.com/codeglyph/go-dotignore/actions/workflows/build.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/codeglyph/go-dotignore/v2)](https://goreportcard.com/report/github.com/codeglyph/go-dotignore/v2)
 [![GoDoc](https://godoc.org/github.com/codeglyph/go-dotignore/v2?status.svg)](https://godoc.org/github.com/codeglyph/go-dotignore/v2)
 [![GitHub release](https://img.shields.io/github/v/release/codeglyph/go-dotignore)](https://github.com/codeglyph/go-dotignore/v2/releases)
-
 # go-dotignore
 
 > **⚠️ IMPORTANT:** If you're using v1.x.x, please upgrade to **v2.0.1+** immediately.
