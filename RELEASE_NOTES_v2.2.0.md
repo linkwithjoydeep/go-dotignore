@@ -9,7 +9,7 @@
 - Dropped `slices` dependency usage for skip-folder checks in repository scanning path.
 
 ### Credits
-- Thanks to [@marcelherhold](https://github.com/marcelherhold) for PR [#6](https://github.com/linkwithjoydeep/go-dotignore/pull/6).
+- Thanks to [@Marcel2603](https://github.com/Marcel2603) for PR [#6](https://github.com/linkwithjoydeep/go-dotignore/pull/6).
 
 ### Source
 - Commit: `fe7feef51cd11cd936088946265aeee8d7230c49`
