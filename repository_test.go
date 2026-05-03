@@ -63,11 +63,11 @@ func TestNewRepositoryMatcher(t *testing.T) {
 		{
 			name: "deeply nested .gitignore",
 			structure: map[string]string{
-				".gitignore":                    "*.log\n",
-				"a/.gitignore":                  "*.tmp\n",
-				"a/b/.gitignore":                "*.cache\n",
-				"a/b/c/.gitignore":              "*.test\n",
-				"a/b/c/d/.gitignore":            "*.debug\n",
+				".gitignore":         "*.log\n",
+				"a/.gitignore":       "*.tmp\n",
+				"a/b/.gitignore":     "*.cache\n",
+				"a/b/c/.gitignore":   "*.test\n",
+				"a/b/c/d/.gitignore": "*.debug\n",
 			},
 			wantErr:   false,
 			wantCount: 5,
@@ -132,7 +132,7 @@ func TestNewRepositoryMatcher_Errors(t *testing.T) {
 
 func TestRepositoryMatcher_Matches_SimpleHierarchy(t *testing.T) {
 	structure := map[string]string{
-		".gitignore": "*.log\ntemp/\n",
+		".gitignore":          "*.log\ntemp/\n",
 		"frontend/.gitignore": "node_modules/\ndist/\n",
 	}
 
@@ -185,7 +185,7 @@ func TestRepositoryMatcher_Matches_SimpleHierarchy(t *testing.T) {
 
 func TestRepositoryMatcher_Matches_Negation(t *testing.T) {
 	structure := map[string]string{
-		".gitignore": "*.log\n!important.log\n",
+		".gitignore":      "*.log\n!important.log\n",
 		"logs/.gitignore": "!debug.log\n",
 	}
 
@@ -311,7 +311,7 @@ _build/
 func TestRepositoryMatcher_Matches_OverrideParentPatterns(t *testing.T) {
 	// Test that child .gitignore can override parent patterns
 	structure := map[string]string{
-		".gitignore": "*.txt\n",
+		".gitignore":         "*.txt\n",
 		"special/.gitignore": "!important.txt\n",
 	}
 
@@ -351,7 +351,7 @@ func TestRepositoryMatcher_Matches_OverrideParentPatterns(t *testing.T) {
 func TestRepositoryMatcher_Matches_RootRelativePatterns(t *testing.T) {
 	// Test root-relative patterns in nested .gitignore files
 	structure := map[string]string{
-		".gitignore": "/build/\nconfig/\n",
+		".gitignore":     "/build/\nconfig/\n",
 		"src/.gitignore": "/test/\n",
 	}
 
@@ -429,9 +429,9 @@ func TestRepositoryMatcher_Matches_AbsolutePaths(t *testing.T) {
 
 func TestRepositoryMatcher_IgnoreFilePaths(t *testing.T) {
 	structure := map[string]string{
-		".gitignore": "*.log\n",
+		".gitignore":          "*.log\n",
 		"frontend/.gitignore": "node_modules/\n",
-		"backend/.gitignore": "target/\n",
+		"backend/.gitignore":  "target/\n",
 	}
 
 	tmpDir := createTestRepo(t, structure)
@@ -463,10 +463,10 @@ func TestRepositoryMatcher_IgnoreFilePaths(t *testing.T) {
 
 func TestRepositoryMatcherWithConfig_MaxDepth(t *testing.T) {
 	structure := map[string]string{
-		".gitignore":                "*.log\n",
-		"a/.gitignore":              "*.tmp\n",
-		"a/b/.gitignore":            "*.cache\n",
-		"a/b/c/.gitignore":          "*.test\n",
+		".gitignore":       "*.log\n",
+		"a/.gitignore":     "*.tmp\n",
+		"a/b/.gitignore":   "*.cache\n",
+		"a/b/c/.gitignore": "*.test\n",
 	}
 
 	tmpDir := createTestRepo(t, structure)
@@ -493,7 +493,7 @@ func TestRepositoryMatcherWithConfig_MaxDepth(t *testing.T) {
 
 func TestRepositoryMatcherWithConfig_CustomIgnoreFileName(t *testing.T) {
 	structure := map[string]string{
-		".ignore": "*.log\n",
+		".ignore":     "*.log\n",
 		"src/.ignore": "*.tmp\n",
 	}
 
@@ -525,7 +525,7 @@ func TestRepositoryMatcherWithConfig_CustomIgnoreFileName(t *testing.T) {
 
 func TestRepositoryMatcher_Matches_WildcardPatterns(t *testing.T) {
 	structure := map[string]string{
-		".gitignore": "node_modules/\n**/*.test.js\n",
+		".gitignore":     "node_modules/\n**/*.test.js\n",
 		"src/.gitignore": "*.tmp\n",
 	}
 
@@ -573,9 +573,112 @@ func TestRepositoryMatcher_Matches_WildcardPatterns(t *testing.T) {
 	}
 }
 
+func TestRepositoryMatcherWithConfig_SkipFolders(t *testing.T) {
+	structure := map[string]string{
+		".gitignore":            "*.log\n",
+		"vendor/.gitignore":     "*.tmp\n",
+		"vendor/pkg/.gitignore": "*.cache\n",
+		"src/.gitignore":        "*.test\n",
+	}
+
+	tmpDir := createTestRepo(t, structure)
+	defer os.RemoveAll(tmpDir)
+
+	config := &RepositoryConfig{
+		IgnoreFileName: ".gitignore",
+		SkipFolders:    []string{"vendor"},
+	}
+
+	matcher, err := NewRepositoryMatcherWithConfig(tmpDir, config)
+	if err != nil {
+		t.Fatalf("NewRepositoryMatcherWithConfig() failed: %v", err)
+	}
+
+	// vendor/ and vendor/pkg/ .gitignore files should not be loaded
+	if count := matcher.IgnoreFileCount(); count != 2 {
+		t.Errorf("got %d ignore files, want 2 (root + src)", count)
+	}
+
+	tests := []struct {
+		path string
+		want bool
+		desc string
+	}{
+		{"app.log", true, "root pattern still applies"},
+		{"vendor/app.log", true, "root pattern applies inside skipped folder"},
+		{"vendor/cache.tmp", false, "vendor .gitignore not loaded - *.tmp not matched"},
+		{"vendor/pkg/data.cache", false, "vendor/pkg .gitignore not loaded - *.cache not matched"},
+		{"src/unit.test", true, "src .gitignore loaded normally"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			got, err := matcher.Matches(tt.path)
+			if err != nil {
+				t.Errorf("Matches(%q) error: %v", tt.path, err)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Matches(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRepositoryMatcherWithConfig_SkipFolders_Multiple(t *testing.T) {
+	structure := map[string]string{
+		".gitignore":              "*.log\n",
+		"vendor/.gitignore":       "*.tmp\n",
+		"node_modules/.gitignore": "*.cache\n",
+		"src/.gitignore":          "*.test\n",
+	}
+
+	tmpDir := createTestRepo(t, structure)
+	defer os.RemoveAll(tmpDir)
+
+	config := &RepositoryConfig{
+		IgnoreFileName: ".gitignore",
+		SkipFolders:    []string{"vendor", "node_modules"},
+	}
+
+	matcher, err := NewRepositoryMatcherWithConfig(tmpDir, config)
+	if err != nil {
+		t.Fatalf("NewRepositoryMatcherWithConfig() failed: %v", err)
+	}
+
+	// Only root and src should be loaded
+	if count := matcher.IgnoreFileCount(); count != 2 {
+		t.Errorf("got %d ignore files, want 2", count)
+	}
+}
+
+func TestRepositoryMatcherWithConfig_SkipFolders_Empty(t *testing.T) {
+	structure := map[string]string{
+		".gitignore":        "*.log\n",
+		"vendor/.gitignore": "*.tmp\n",
+	}
+
+	tmpDir := createTestRepo(t, structure)
+	defer os.RemoveAll(tmpDir)
+
+	config := &RepositoryConfig{
+		IgnoreFileName: ".gitignore",
+		SkipFolders:    []string{}, // empty - nothing skipped
+	}
+
+	matcher, err := NewRepositoryMatcherWithConfig(tmpDir, config)
+	if err != nil {
+		t.Fatalf("NewRepositoryMatcherWithConfig() failed: %v", err)
+	}
+
+	if count := matcher.IgnoreFileCount(); count != 2 {
+		t.Errorf("got %d ignore files, want 2", count)
+	}
+}
+
 func TestRepositoryMatcher_EmptyFile(t *testing.T) {
 	structure := map[string]string{
-		".gitignore": "",
+		".gitignore":     "",
 		"src/.gitignore": "*.tmp\n",
 	}
 

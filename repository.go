@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -45,6 +46,9 @@ type RepositoryConfig struct {
 
 	// FollowSymlinks determines whether to follow symbolic links when discovering ignore files
 	FollowSymlinks bool
+
+	// SkipFolders list of foldernames to not search for IgnoreFileName-files.
+	SkipFolders []string
 }
 
 // DefaultRepositoryConfig returns a RepositoryConfig with sensible defaults.
@@ -53,6 +57,7 @@ func DefaultRepositoryConfig() *RepositoryConfig {
 		IgnoreFileName: ".gitignore",
 		MaxDepth:       0, // unlimited
 		FollowSymlinks: false,
+		SkipFolders:    make([]string, 0),
 	}
 }
 
@@ -116,6 +121,10 @@ func (rm *RepositoryMatcher) discoverIgnoreFiles(config *RepositoryConfig) error
 				return fs.SkipDir
 			}
 			return err
+		}
+
+		if d.IsDir() && slices.Contains(config.SkipFolders, d.Name()) {
+			return fs.SkipDir
 		}
 
 		// Check depth limit
