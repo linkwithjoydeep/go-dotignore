@@ -34,6 +34,7 @@ func ReadLines(reader io.Reader) ([]string, error) {
 	return lines, nil
 }
 
+// Contains checks if a slice contains a specific string.
 func Contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
