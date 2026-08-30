@@ -312,7 +312,7 @@ func (rm *RepositoryMatcher) Walk(fn WalkFunc) error {
 		stack = append(stack, repoWalkFrame{matcher: m, offset: 0})
 	}
 
-	_, err = rm.walkEntries(rootEntries, rm.rootDir, "", 0, stack, fn)
+	_, err = rm.walkEntries(rootEntries, rm.rootDir, "", stack, fn)
 	return err
 }
 
@@ -320,7 +320,7 @@ func (rm *RepositoryMatcher) Walk(fn WalkFunc) error {
 // into subdirectories as needed. It returns (stopAll, err): stopAll is true
 // once fn has returned fs.SkipAll, at which point every caller up the
 // recursion unwinds without further callback invocations.
-func (rm *RepositoryMatcher) walkEntries(entries []fs.DirEntry, parentAbs, parentRel string, depth int, stack []repoWalkFrame, fn WalkFunc) (bool, error) {
+func (rm *RepositoryMatcher) walkEntries(entries []fs.DirEntry, parentAbs, parentRel string, stack []repoWalkFrame, fn WalkFunc) (bool, error) {
 	for _, entry := range entries {
 		name := entry.Name()
 		childRel := name
@@ -375,7 +375,7 @@ func (rm *RepositoryMatcher) walkEntries(entries []fs.DirEntry, parentAbs, paren
 			childStack = append(append([]repoWalkFrame(nil), stack...), repoWalkFrame{matcher: m, offset: len(childRel) + 1})
 		}
 
-		stopAll, walkErr := rm.walkEntries(childEntries, childAbs, childRel, depth+1, childStack, fn)
+		stopAll, walkErr := rm.walkEntries(childEntries, childAbs, childRel, childStack, fn)
 		if stopAll {
 			return true, nil
 		}
