@@ -696,3 +696,51 @@ func TestRepositoryMatcher_EmptyFile(t *testing.T) {
 		t.Errorf("got %d ignore files, want at least 1", count)
 	}
 }
+
+func BenchmarkRepositoryMatcher_Matches(b *testing.B) {
+	tmpDir, err := os.MkdirTemp("", "dotignore-bench-*")
+	if err != nil {
+		b.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	structure := map[string]string{
+		".gitignore":          "*.log\n.DS_Store\n.env\n",
+		"frontend/.gitignore": "node_modules/\ndist/\n.cache/\n*.local.js\n",
+		"backend/.gitignore":  "target/\n*.class\nlogs/\n",
+		"docs/.gitignore":     "_build/\n*.pyc\n",
+	}
+	for path, content := range structure {
+		fullPath := filepath.Join(tmpDir, path)
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			b.Fatalf("failed to create directory: %v", err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+			b.Fatalf("failed to write file: %v", err)
+		}
+	}
+
+	matcher, err := NewRepositoryMatcher(tmpDir)
+	if err != nil {
+		b.Fatalf("NewRepositoryMatcher() failed: %v", err)
+	}
+
+	testPaths := []string{
+		"app.log",
+		"frontend/node_modules/package.json",
+		"frontend/src/App.js",
+		"backend/target/classes/Main.class",
+		"backend/src/main.go",
+		"docs/_build/html/index.html",
+		"docs/index.rst",
+		"README.md",
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, path := range testPaths {
+			_, _ = matcher.Matches(path)
+		}
+	}
+}

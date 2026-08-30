@@ -203,46 +203,43 @@ func (rm *RepositoryMatcher) Matches(path string) (bool, error) {
 	// Normalize to forward slashes for consistent matching
 	relPath = filepath.ToSlash(relPath)
 
-	// Build list of directories from root to the file's directory
-	// We need to check .gitignore files in order from root to leaf
-	var dirsToCheck []string
+	// Walk directories from root to leaf, applying matchers as we go.
+	// currentDir tracks the directory path incrementally (no rebuilding from
+	// scratch), and matchPath is sliced directly off relPath rather than
+	// recomputed via filepath.Rel at each level.
+	// Later matchers can override earlier ones via negation.
+	matched := false
 	currentDir := rm.rootDir
-	dirsToCheck = append(dirsToCheck, currentDir)
+	matchPath := relPath
 
-	// Split the relative path and build up directory path
-	parts := strings.Split(relPath, "/")
-	for i := 0; i < len(parts)-1; i++ {
-		currentDir = filepath.Join(currentDir, parts[i])
-		dirsToCheck = append(dirsToCheck, currentDir)
+	if matcher, exists := rm.matchers[currentDir]; exists {
+		isMatch, anyPatternMatched, err := matcher.MatchesWithTracking(matchPath)
+		if err != nil {
+			return false, fmt.Errorf("error matching against %s: %w", currentDir, err)
+		}
+		if anyPatternMatched {
+			matched = isMatch
+		}
 	}
 
-	// Apply matchers in order from root to leaf
-	// Later matchers can override earlier ones via negation
-	matched := false
+	for {
+		idx := strings.IndexByte(matchPath, '/')
+		if idx == -1 {
+			break
+		}
+		currentDir = filepath.Join(currentDir, matchPath[:idx])
+		matchPath = matchPath[idx+1:]
 
-	for _, dir := range dirsToCheck {
-		matcher, exists := rm.matchers[dir]
+		matcher, exists := rm.matchers[currentDir]
 		if !exists {
 			continue
-		}
-
-		// Compute path relative to this matcher's directory
-		var matchPath string
-		if dir == rm.rootDir {
-			matchPath = relPath
-		} else {
-			relToDir, err := filepath.Rel(dir, absPath)
-			if err != nil {
-				continue
-			}
-			matchPath = filepath.ToSlash(relToDir)
 		}
 
 		// Check if this matcher has a pattern that applies
 		// Use MatchesWithTracking to know if any pattern actually matched
 		isMatch, anyPatternMatched, err := matcher.MatchesWithTracking(matchPath)
 		if err != nil {
-			return false, fmt.Errorf("error matching against %s: %w", dir, err)
+			return false, fmt.Errorf("error matching against %s: %w", currentDir, err)
 		}
 
 		// Only update matched status if a pattern actually matched
