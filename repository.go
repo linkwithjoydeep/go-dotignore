@@ -35,6 +35,7 @@ import (
 type RepositoryMatcher struct {
 	rootDir  string
 	matchers map[string]*PatternMatcher // Map of directory path -> matcher
+	config   *RepositoryConfig
 }
 
 // RepositoryConfig configures the behavior of RepositoryMatcher.
@@ -103,6 +104,7 @@ func NewRepositoryMatcherWithConfig(rootDir string, config *RepositoryConfig) (*
 	rm := &RepositoryMatcher{
 		rootDir:  absRoot,
 		matchers: make(map[string]*PatternMatcher),
+		config:   config,
 	}
 
 	// Discover and load all .gitignore files
@@ -251,6 +253,154 @@ func (rm *RepositoryMatcher) Matches(path string) (bool, error) {
 		}
 	}
 
+	return matched, nil
+}
+
+// WalkFunc is the type of the function called by Walk for every entry visited.
+// It mirrors fs.WalkDirFunc, with an additional ignored parameter reporting
+// whether the entry is excluded by the repository's .gitignore rules or
+// RepositoryConfig.SkipFolders.
+//
+// Control flow matches filepath.WalkDir: returning fs.SkipDir for a directory
+// skips its contents, for a file skips the rest of its siblings; returning
+// fs.SkipAll stops the walk entirely; any other non-nil error aborts the walk
+// and is returned by Walk.
+type WalkFunc func(path string, d fs.DirEntry, ignored bool, err error) error
+
+// repoWalkFrame is one entry in the incremental stack of applicable
+// PatternMatchers maintained while walking. offset is the byte offset into a
+// descendant's root-relative path at which the path relative to this frame's
+// directory begins.
+type repoWalkFrame struct {
+	matcher *PatternMatcher
+	offset  int
+}
+
+// Walk traverses the repository tree rooted at rm.RootDir(), calling fn for
+// the root first (with ignored=false), then for every other entry exactly
+// once, in lexical order, with absolute paths.
+//
+// A directory Walk will not descend into - because it matched a .gitignore
+// rule or because its name is in RepositoryConfig.SkipFolders - is still
+// reported once with ignored=true before Walk moves past it without visiting
+// its contents. Walk honors the same MaxDepth and FollowSymlinks settings the
+// RepositoryMatcher was constructed with.
+func (rm *RepositoryMatcher) Walk(fn WalkFunc) error {
+	rootInfo, statErr := os.Lstat(rm.rootDir)
+
+	var rootEntry fs.DirEntry
+	var rootEntries []fs.DirEntry
+	readErr := statErr
+	if statErr == nil {
+		rootEntry = fs.FileInfoToDirEntry(rootInfo)
+		rootEntries, readErr = os.ReadDir(rm.rootDir)
+	}
+
+	err := fn(rm.rootDir, rootEntry, false, readErr)
+	if err == fs.SkipDir || err == fs.SkipAll {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if readErr != nil {
+		return nil
+	}
+
+	var stack []repoWalkFrame
+	if m, ok := rm.matchers[rm.rootDir]; ok {
+		stack = append(stack, repoWalkFrame{matcher: m, offset: 0})
+	}
+
+	_, err = rm.walkEntries(rootEntries, rm.rootDir, "", 0, stack, fn)
+	return err
+}
+
+// walkEntries visits the already-listed entries of a directory, recursing
+// into subdirectories as needed. It returns (stopAll, err): stopAll is true
+// once fn has returned fs.SkipAll, at which point every caller up the
+// recursion unwinds without further callback invocations.
+func (rm *RepositoryMatcher) walkEntries(entries []fs.DirEntry, parentAbs, parentRel string, depth int, stack []repoWalkFrame, fn WalkFunc) (bool, error) {
+	for _, entry := range entries {
+		name := entry.Name()
+		childRel := name
+		if parentRel != "" {
+			childRel = parentRel + "/" + name
+		}
+		childAbs := filepath.Join(parentAbs, name)
+		isDir := entry.IsDir()
+
+		ignored, matchErr := rm.matchedAgainstStack(childRel, stack)
+
+		skipFolder := isDir && internal.Contains(rm.config.SkipFolders, name)
+		if skipFolder {
+			ignored = true
+		}
+
+		exceedsDepth := isDir && rm.config.MaxDepth > 0 && strings.Count(childRel, "/") > rm.config.MaxDepth
+		skipSymlink := isDir && entry.Type()&fs.ModeSymlink != 0 && !rm.config.FollowSymlinks
+
+		wantDescend := isDir && !skipFolder && !ignored && matchErr == nil && !exceedsDepth && !skipSymlink
+
+		var childEntries []fs.DirEntry
+		var readErr error
+		if wantDescend {
+			childEntries, readErr = os.ReadDir(childAbs)
+		}
+
+		cbErr := matchErr
+		if cbErr == nil {
+			cbErr = readErr
+		}
+		err := fn(childAbs, entry, ignored, cbErr)
+		if err == fs.SkipAll {
+			return true, nil
+		}
+		if err == fs.SkipDir {
+			if isDir {
+				continue
+			}
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+
+		if !wantDescend || readErr != nil {
+			continue
+		}
+
+		childStack := stack
+		if m, ok := rm.matchers[childAbs]; ok {
+			childStack = append(append([]repoWalkFrame(nil), stack...), repoWalkFrame{matcher: m, offset: len(childRel) + 1})
+		}
+
+		stopAll, walkErr := rm.walkEntries(childEntries, childAbs, childRel, depth+1, childStack, fn)
+		if stopAll {
+			return true, nil
+		}
+		if walkErr != nil {
+			return false, walkErr
+		}
+	}
+	return false, nil
+}
+
+// matchedAgainstStack applies the incremental matcher stack (root to leaf) to
+// relPath, following the same root-to-leaf, negation-overrides-parent
+// semantics as Matches.
+func (rm *RepositoryMatcher) matchedAgainstStack(relPath string, stack []repoWalkFrame) (bool, error) {
+	matched := false
+	for _, frame := range stack {
+		matchPath := relPath[frame.offset:]
+		isMatch, anyPatternMatched, err := frame.matcher.MatchesWithTracking(matchPath)
+		if err != nil {
+			return false, fmt.Errorf("error matching against pattern matcher: %w", err)
+		}
+		if anyPatternMatched {
+			matched = isMatch
+		}
+	}
 	return matched, nil
 }
 
