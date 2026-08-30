@@ -294,20 +294,30 @@ func matchDirectoryPattern(file string, pattern ignorePattern) bool {
 }
 
 // matchWildcardSubpaths tries the pattern against all sub-paths of file.
+//
+// This tries the pattern against file itself, then against the substring
+// following each "/" in turn (i.e. what strings.Split(file, "/")[i:] would
+// join back into, for every i) — but by locating separator offsets and
+// slicing the original string instead of splitting/rejoining, since a Go
+// string slice shares the original's backing array and does not allocate.
+//
+// Note: rejoining strings.Split(file, "/") around any single split point i
+// reconstructs file exactly (the "/" removed by Split is the same one
+// reinserted by Join), so a second loop that reassembled sub-paths from both
+// halves around each split point would only ever re-test file itself —
+// already covered by i == 0 below — and is omitted as dead work.
 func matchWildcardSubpaths(file string, pattern ignorePattern) bool {
-	parts := strings.Split(file, "/")
-	for i := 0; i < len(parts); i++ {
-		if pattern.regexPattern.MatchString(strings.Join(parts[i:], "/")) {
+	start := 0
+	for {
+		if pattern.regexPattern.MatchString(file[start:]) {
 			return true
 		}
-	}
-	for i := 1; i < len(parts); i++ {
-		combined := strings.Join(parts[:i], "/") + "/" + strings.Join(parts[i:], "/")
-		if pattern.regexPattern.MatchString(combined) {
-			return true
+		idx := strings.IndexByte(file[start:], '/')
+		if idx == -1 {
+			return false
 		}
+		start += idx + 1
 	}
-	return false
 }
 
 // matchPathSeparatorPattern handles patterns that contain a path separator.
@@ -326,11 +336,20 @@ func matchPathSeparatorPattern(file string, pattern ignorePattern) bool {
 }
 
 // matchSimplePattern handles patterns without path separators by checking each path component.
+//
+// Iterates path components by slicing file at "/" offsets instead of
+// strings.Split, since slicing shares file's backing array and does not
+// allocate.
 func matchSimplePattern(file string, pattern ignorePattern) bool {
-	for _, part := range strings.Split(file, "/") {
-		if pattern.regexPattern.MatchString(part) {
+	start := 0
+	for {
+		idx := strings.IndexByte(file[start:], '/')
+		if idx == -1 {
+			return pattern.regexPattern.MatchString(file[start:])
+		}
+		if pattern.regexPattern.MatchString(file[start : start+idx]) {
 			return true
 		}
+		start += idx + 1
 	}
-	return false
 }

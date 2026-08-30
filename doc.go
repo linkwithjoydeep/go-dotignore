@@ -97,9 +97,10 @@
 //
 // The package is optimized for performance:
 //   - Regex compilation happens once during initialization
-//   - Pattern matching is ~34µs per operation
+//   - Pattern matching is allocation-light on the hot path: PatternMatcher.Matches
+//     avoids splitting/rejoining path strings, so repeated calls generate
+//     little to no garbage (see BenchmarkMatches for current numbers)
 //   - Thread-safe for concurrent use
-//   - No allocations during regex matching
 //
 // # Compatibility
 //
