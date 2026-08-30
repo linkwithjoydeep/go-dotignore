@@ -5,8 +5,8 @@
 
 [![build](https://github.com/codeglyph/go-dotignore/actions/workflows/build.yml/badge.svg)](https://github.com/codeglyph/go-dotignore/actions/workflows/build.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/codeglyph/go-dotignore/v2)](https://goreportcard.com/report/github.com/codeglyph/go-dotignore/v2)
-[![GoDoc](https://godoc.org/github.com/codeglyph/go-dotignore/v2?status.svg)](https://godoc.org/github.com/codeglyph/go-dotignore/v2)
-[![GitHub release](https://img.shields.io/github/v/release/codeglyph/go-dotignore)](https://github.com/codeglyph/go-dotignore/v2/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/codeglyph/go-dotignore/v2.svg)](https://pkg.go.dev/github.com/codeglyph/go-dotignore/v2)
+[![GitHub release](https://img.shields.io/github/v/release/codeglyph/go-dotignore)](https://github.com/codeglyph/go-dotignore/releases)
 # go-dotignore
 
 > **⚠️ IMPORTANT:** If you're using v1.x.x, please upgrade to **v2.2.0+** immediately.
@@ -18,7 +18,7 @@
 > **➡️ Upgrade now:** `go get github.com/codeglyph/go-dotignore/v2@latest`
 >
 > **📦 Note:** v2+ requires the `/v2` suffix in import paths (Go module requirement).
-> See [Release Notes](https://github.com/codeglyph/go-dotignore/v2/releases/tag/v2.0.0) for details.
+> See [Release Notes](https://github.com/codeglyph/go-dotignore/releases/tag/v2.0.0) for details.
 
 **go-dotignore** is a high-performance Go library for parsing `.gitignore`-style files and matching file paths against specified ignore patterns. It provides full support for advanced ignore rules, negation patterns, and wildcards, making it an ideal choice for file exclusion in Go projects.
 
