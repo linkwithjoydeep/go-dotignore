@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-08-30
+
+### Added
+- **Feature:** `RepositoryMatcher.Walk(fn WalkFunc) error`, an ignore-aware directory traversal
+  - Mirrors `filepath.WalkDir`'s callback shape (`fs.SkipDir`/`fs.SkipAll` control flow, filesystem errors delivered via the `err` parameter)
+  - Adds an `ignored bool` reporting whether each entry is excluded by `.gitignore` rules or `RepositoryConfig.SkipFolders`
+  - A directory excluded either way is reported once with `ignored=true` and never descended into
+  - Honors the same `MaxDepth` and `FollowSymlinks` settings the `RepositoryMatcher` was constructed with
+
+### Performance
+- Removed all hot-path allocations from `PatternMatcher` matching (`matchWildcardSubpaths`/`matchSimplePattern` now slice the original path string instead of splitting/rejoining it): 34184 ns/op, 3762 B/op, 148 allocs/op → 25317 ns/op, 0 B/op, 0 allocs/op
+- Removed hot-path allocations from `RepositoryMatcher.Matches` by walking directories incrementally instead of rebuilding a directory list and re-deriving relative paths on every call: 48 allocs/op, 3065 B/op → 21 allocs/op, 2044 B/op
+
+### Changed
+- Corrected `doc.go`'s Performance section, which claimed "no allocations during regex matching" before that was actually true
+
 ## [2.2.0] - 2026-05-03
 
 ### Added

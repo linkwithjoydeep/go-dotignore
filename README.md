@@ -37,14 +37,14 @@
 
 ## Installation
 
-**Recommended (v2.2.0+):**
+**Recommended (v2.3.0+):**
 ```bash
 go get github.com/codeglyph/go-dotignore/v2@latest
 ```
 
 Or in your `go.mod`:
 ```go
-require github.com/codeglyph/go-dotignore/v2 v2.2.0
+require github.com/codeglyph/go-dotignore/v2 v2.3.0
 ```
 
 **⚠️ Important Notes:**
@@ -52,6 +52,7 @@ require github.com/codeglyph/go-dotignore/v2 v2.2.0
 - v2.0.0 was released with incorrect module path - use v2.0.1+
 - Versions v1.0.0-v1.1.1 are retracted due to critical bugs
 - v2.2.0 adds `RepositoryConfig.SkipFolders` for faster repository scanning in large trees
+- v2.3.0 adds `RepositoryMatcher.Walk` for ignore-aware directory traversal, plus zero-allocation pattern matching
 
 ## Quick Start
 
